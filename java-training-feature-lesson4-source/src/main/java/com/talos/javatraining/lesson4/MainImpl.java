@@ -3,6 +3,7 @@ package com.talos.javatraining.lesson4;
 
 import com.talos.javatraining.lesson4.exceptions.AddressNotFoundException;
 import com.talos.javatraining.lesson4.model.AddressModel;
+import com.talos.javatraining.lesson4.model.CountryModel;
 import com.talos.javatraining.lesson4.model.UserModel;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.BooleanUtils;
@@ -46,7 +47,7 @@ public class MainImpl implements Main
 					{
 						stringBuilder.append(StringUtils.SPACE);
 					}
-					stringBuilder.append(addressModel.getLastName());
+					stringBuilder.append(lastName);
 				});
 
 		return stringBuilder.toString();
@@ -55,64 +56,43 @@ public class MainImpl implements Main
 	@Override
 	public AddressModel getBillingAddress(UserModel userModel)
 	{
-		AddressModel result = null;
-		if (userModel != null)
-		{
-			if (CollectionUtils.isNotEmpty(userModel.getAddresses()))
-			{
-				result = getAddress(userModel.getAddresses(), a -> BooleanUtils.isTrue(a.getBillingAddress()));
-			}
-		}
-		return result;
+		return Optional.ofNullable(userModel)
+				.map(UserModel::getAddresses)
+				.filter(CollectionUtils::isNotEmpty)
+				.map(addressModels -> getAddress(addressModels, a -> BooleanUtils.isTrue(a.getBillingAddress())))
+				.orElse(null);
 	}
 
 	@Override
 	public String getLastLoginFormatted(UserModel userModel)
 	{
 		DateFormat format = new SimpleDateFormat("MM/dd/yyyy");
-		String result = "the user has not been logged yet";
-		if (userModel != null && userModel.getLastLogin() != null)
-		{
-			result = format.format(userModel.getLastLogin());
-		}
-		return result;
+		return Optional.ofNullable(userModel)
+				.map(UserModel::getLastLogin)
+				.map(format::format)
+				.orElse("the user has not been logged yet");
 	}
 
 	@Override
 	public String getContactCountry(UserModel userModel)
 	{
-		String contactAddressIsoCode = null;
-		if (userModel != null)
-		{
-			if (CollectionUtils.isNotEmpty(userModel.getAddresses()))
-			{
-				AddressModel contactAddress = getAddress(userModel.getAddresses(), a -> BooleanUtils.isTrue(a.getContactAddress()));
-				if (contactAddress != null && contactAddress.getCountry() != null)
-				{
-					contactAddressIsoCode = contactAddress.getCountry().getIsocode();
-				}
-			}
-		}
-		if (contactAddressIsoCode == null)
-		{
-			contactAddressIsoCode = inferCountry();
-		}
-		return contactAddressIsoCode;
+		return Optional.ofNullable(userModel)
+				.map(UserModel::getAddresses)
+				.filter(CollectionUtils::isNotEmpty)
+				.map(addressModels -> getAddress(addressModels, a -> BooleanUtils.isTrue(a.getContactAddress())))
+				.map(AddressModel::getCountry)
+				.map(CountryModel::getIsocode)
+				.orElseGet(this::inferCountry);
 	}
 
 	@Override
 	public AddressModel getShippingAddress(UserModel userModel) throws AddressNotFoundException
 	{
-		AddressModel addressModel = null;
-		if (CollectionUtils.isNotEmpty(userModel.getAddresses()))
-		{
-			addressModel = getAddress(userModel.getAddresses(), a -> BooleanUtils.isTrue(a.getShippingAddress()));
-		}
-		if (addressModel == null)
-		{
-			throw new AddressNotFoundException();
-		}
-		return addressModel;
+		return Optional.ofNullable(userModel)
+				.map(UserModel::getAddresses)
+				.filter(CollectionUtils::isNotEmpty)
+				.map(addressModels -> getAddress(addressModels, a -> BooleanUtils.isTrue(a.getShippingAddress())))
+				.orElseThrow(AddressNotFoundException::new);
 	}
 
 	// ----------------------------------
